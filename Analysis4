@@ -1,0 +1,128 @@
+# ======================================================
+# Analyze Each Threshold
+# ======================================================
+
+threshold_results = []
+
+for threshold_kb in thresholds_kb:
+
+    threshold_sectors = (
+        threshold_kb * 1024 // cfg.SECTOR_SIZE
+    )
+
+    qualifying_clusters = 0
+
+    sequential_write_commands = 0
+
+    sequential_write_sectors = 0
+
+    # --------------------------------------------------
+    # Check every sequential cluster
+    # --------------------------------------------------
+
+    for cluster in clusters:
+
+        cluster_sectors = sum(
+            io.size
+            for io in cluster
+        )
+
+        #
+        # Cluster qualifies if its total size
+        # is >= current threshold
+        #
+
+        if cluster_sectors >= threshold_sectors:
+
+            qualifying_clusters += 1
+
+            sequential_write_commands += len(
+                cluster
+            )
+
+            sequential_write_sectors += (
+                cluster_sectors
+            )
+
+    # --------------------------------------------------
+    # Sequential WRITE command percentage
+    # --------------------------------------------------
+
+    command_percent = (
+
+        sequential_write_commands
+        / writes
+        * 100
+
+        if writes else 0
+    )
+
+    # --------------------------------------------------
+    # Sequential WRITE sector percentage
+    # --------------------------------------------------
+
+    sector_percent = (
+
+        sequential_write_sectors
+        / total_write_sectors
+        * 100
+
+        if total_write_sectors else 0
+    )
+
+    threshold_results.append({
+
+        "threshold_kb":
+            threshold_kb,
+
+        "clusters":
+            qualifying_clusters,
+
+        "seq_write_commands":
+            sequential_write_commands,
+
+        "command_percent":
+            command_percent,
+
+        "seq_write_sectors":
+            sequential_write_sectors,
+
+        "sector_percent":
+            sector_percent
+
+    })
+
+
+# ======================================================
+# Print Results
+# ======================================================
+
+print()
+print("==========================================================================")
+print(" Sequential Write Analysis - 128 KB to 512 KB")
+print("==========================================================================")
+
+print(
+    f"{'Threshold':>12} "
+    f"{'Clusters':>12} "
+    f"{'Seq Cmds':>14} "
+    f"{'Cmd %':>10} "
+    f"{'Seq Sectors':>18} "
+    f"{'Sector %':>12}"
+)
+
+print("-" * 78)
+
+
+for result in threshold_results:
+
+    print(
+        f">= {result['threshold_kb']:>6} KB "
+        f"{result['clusters']:>12,} "
+        f"{result['seq_write_commands']:>14,} "
+        f"{result['command_percent']:>9.2f}% "
+        f"{result['seq_write_sectors']:>18,} "
+        f"{result['sector_percent']:>11.2f}%"
+    )
+
+print("=" * 78)
