@@ -1,0 +1,515 @@
+parser = TraceParser(trace_file)
+
+total_ios = 0
+
+reads = 0
+writes = 0
+trims = 0
+flushes = 0
+
+#
+# Total sectors written
+#
+total_write_sectors = 0
+
+#
+# Store all WRITE entries
+# for sequential cluster detection
+#
+write_entries = []
+
+
+for io in parser.parse():
+
+    total_ios += 1
+
+    # ==================================================
+    # READ
+    # ==================================================
+
+    if io.operation in cfg.READ_COMMANDS:
+
+        reads += 1
+
+    # ==================================================
+    # WRITE
+    # ==================================================
+
+    elif io.operation in cfg.WRITE_COMMANDS:
+
+        writes += 1
+
+        total_write_sectors += io.size
+
+        write_entries.append(io)
+
+    # ==================================================
+    # TRIM
+    # ==================================================
+
+    elif io.operation in cfg.TRIM_COMMANDS:
+
+        trims += 1
+
+    # ==================================================
+    # FLUSH
+    # ==================================================
+
+    elif io.operation in cfg.FLUSH_COMMANDS:
+
+        flushes += 1
+
+
+# ======================================================
+# Find sequential clusters
+# ======================================================
+
+sequential_cluster_sectors = 0
+
+sequential_clusters = 0
+
+current_cluster_sectors = 0
+
+previous_write = None
+
+
+for io in write_entries:
+
+    #
+    # First write
+    #
+
+    if previous_write is None:
+
+        current_cluster_sectors = io.size
+
+        previous_write = io
+
+        continue
+
+    #
+    # Check whether current write is
+    # immediately after previous write
+    #
+
+    if io.lba == previous_write.end_lba + 1:
+
+        #
+        # Continue current sequential cluster
+        #
+
+        current_cluster_sectors += io.size
+
+    else:
+
+        #
+        # Previous cluster ended.
+        #
+        # Count it only if it contains
+        # a sequential relationship.
+        #
+
+        if current_cluster_sectors > previous_write.size:
+
+            sequential_clusters += 1
+
+            sequential_cluster_sectors += (
+                current_cluster_sectors
+            )
+
+        #
+        # Start new cluster
+        #
+
+        current_cluster_sectors = io.size
+
+    previous_write = io
+
+
+#
+# Check final cluster
+#
+
+if (
+    previous_write is not None
+    and current_cluster_sectors > previous_write.size
+):
+
+    sequential_clusters += 1
+
+    sequential_cluster_sectors += (
+        current_cluster_sectors
+    )
+
+
+# ======================================================
+# IO Percentages
+# ======================================================
+
+read_percent = (
+    (reads / total_ios) * 100
+    if total_ios else 0
+)
+
+write_percent = (
+    (writes / total_ios) * 100
+    if total_ios else 0
+)
+
+trim_percent = (
+    (trims / total_ios) * 100
+    if total_ios else 0
+)
+
+flush_percent = (
+    (flushes / total_ios) * 100
+    if total_ios else 0
+)
+
+
+# ======================================================
+# Sequential / Random Write Percentage
+#
+# Based on sectors in sequential clusters
+# ======================================================
+
+seq_percent = (
+    (sequential_cluster_sectors / total_write_sectors)
+    * 100
+    if total_write_sectors else 0
+)
+
+rand_percent = 100 - seq_percent
+
+
+# ======================================================
+# Print Results
+# ======================================================
+
+print("\n======================================")
+print(f"Trace : {trace_file}")
+print("======================================")
+
+print(
+    f"Total IOs            : "
+    f"{total_ios:,}"
+)
+
+print()
+
+print(
+    f"Reads                : "
+    f"{reads:,} ({read_percent:.2f}%)"
+)
+
+print(
+    f"Writes               : "
+    f"{writes:,} ({write_percent:.2f}%)"
+)
+
+print(
+    f"Trims                : "
+    f"{trims:,} ({trim_percent:.2f}%)"
+)
+
+print(
+    f"Flushes              : "
+    f"{flushes:,} ({flush_percent:.2f}%)"
+)
+
+print()
+
+print(
+    f"Total Write Sectors  : "
+    f"{total_write_sectors:,}"
+)
+
+print(
+    f"Sequential Clusters : "
+    f"{sequential_clusters:,}"
+)
+
+print(
+    f"Sectors in Sequential Clusters : "
+    f"{sequential_cluster_sectors:,}"
+)
+
+print()
+
+print(
+    f"Sequential Write %  : "
+    f"{seq_percent:.2f}%"
+)
+
+print(
+    f"Random Write %      : "
+    f"{rand_percent:.2f}%"
+)
+
+print()
+
+print(
+    f"Sector Check        : "
+    f"{sequential_cluster_sectors:,} + "
+    f"{total_write_sectors - sequential_cluster_sectors:,} "
+    f"= {total_write_sectors:,}"
+)
+
+print("======================================")parser = TraceParser(trace_file)
+
+total_ios = 0
+
+reads = 0
+writes = 0
+trims = 0
+flushes = 0
+
+#
+# Total sectors written
+#
+total_write_sectors = 0
+
+#
+# Store all WRITE entries
+# for sequential cluster detection
+#
+write_entries = []
+
+
+for io in parser.parse():
+
+    total_ios += 1
+
+    # ==================================================
+    # READ
+    # ==================================================
+
+    if io.operation in cfg.READ_COMMANDS:
+
+        reads += 1
+
+    # ==================================================
+    # WRITE
+    # ==================================================
+
+    elif io.operation in cfg.WRITE_COMMANDS:
+
+        writes += 1
+
+        total_write_sectors += io.size
+
+        write_entries.append(io)
+
+    # ==================================================
+    # TRIM
+    # ==================================================
+
+    elif io.operation in cfg.TRIM_COMMANDS:
+
+        trims += 1
+
+    # ==================================================
+    # FLUSH
+    # ==================================================
+
+    elif io.operation in cfg.FLUSH_COMMANDS:
+
+        flushes += 1
+
+
+# ======================================================
+# Find sequential clusters
+# ======================================================
+
+sequential_cluster_sectors = 0
+
+sequential_clusters = 0
+
+current_cluster_sectors = 0
+
+previous_write = None
+
+
+for io in write_entries:
+
+    #
+    # First write
+    #
+
+    if previous_write is None:
+
+        current_cluster_sectors = io.size
+
+        previous_write = io
+
+        continue
+
+    #
+    # Check whether current write is
+    # immediately after previous write
+    #
+
+    if io.lba == previous_write.end_lba + 1:
+
+        #
+        # Continue current sequential cluster
+        #
+
+        current_cluster_sectors += io.size
+
+    else:
+
+        #
+        # Previous cluster ended.
+        #
+        # Count it only if it contains
+        # a sequential relationship.
+        #
+
+        if current_cluster_sectors > previous_write.size:
+
+            sequential_clusters += 1
+
+            sequential_cluster_sectors += (
+                current_cluster_sectors
+            )
+
+        #
+        # Start new cluster
+        #
+
+        current_cluster_sectors = io.size
+
+    previous_write = io
+
+
+#
+# Check final cluster
+#
+
+if (
+    previous_write is not None
+    and current_cluster_sectors > previous_write.size
+):
+
+    sequential_clusters += 1
+
+    sequential_cluster_sectors += (
+        current_cluster_sectors
+    )
+
+
+# ======================================================
+# IO Percentages
+# ======================================================
+
+read_percent = (
+    (reads / total_ios) * 100
+    if total_ios else 0
+)
+
+write_percent = (
+    (writes / total_ios) * 100
+    if total_ios else 0
+)
+
+trim_percent = (
+    (trims / total_ios) * 100
+    if total_ios else 0
+)
+
+flush_percent = (
+    (flushes / total_ios) * 100
+    if total_ios else 0
+)
+
+
+# ======================================================
+# Sequential / Random Write Percentage
+#
+# Based on sectors in sequential clusters
+# ======================================================
+
+seq_percent = (
+    (sequential_cluster_sectors / total_write_sectors)
+    * 100
+    if total_write_sectors else 0
+)
+
+rand_percent = 100 - seq_percent
+
+
+# ======================================================
+# Print Results
+# ======================================================
+
+print("\n======================================")
+print(f"Trace : {trace_file}")
+print("======================================")
+
+print(
+    f"Total IOs            : "
+    f"{total_ios:,}"
+)
+
+print()
+
+print(
+    f"Reads                : "
+    f"{reads:,} ({read_percent:.2f}%)"
+)
+
+print(
+    f"Writes               : "
+    f"{writes:,} ({write_percent:.2f}%)"
+)
+
+print(
+    f"Trims                : "
+    f"{trims:,} ({trim_percent:.2f}%)"
+)
+
+print(
+    f"Flushes              : "
+    f"{flushes:,} ({flush_percent:.2f}%)"
+)
+
+print()
+
+print(
+    f"Total Write Sectors  : "
+    f"{total_write_sectors:,}"
+)
+
+print(
+    f"Sequential Clusters : "
+    f"{sequential_clusters:,}"
+)
+
+print(
+    f"Sectors in Sequential Clusters : "
+    f"{sequential_cluster_sectors:,}"
+)
+
+print()
+
+print(
+    f"Sequential Write %  : "
+    f"{seq_percent:.2f}%"
+)
+
+print(
+    f"Random Write %      : "
+    f"{rand_percent:.2f}%"
+)
+
+print()
+
+print(
+    f"Sector Check        : "
+    f"{sequential_cluster_sectors:,} + "
+    f"{total_write_sectors - sequential_cluster_sectors:,} "
+    f"= {total_write_sectors:,}"
+)
+
+print("======================================")
